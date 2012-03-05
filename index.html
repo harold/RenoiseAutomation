@@ -1,0 +1,152 @@
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="normalize.css" />
+<link rel="stylesheet" type="text/css" href="index.css" />
+<script type="text/javascript" src="jquery-1.7.1.min.js"></script>
+<script>
+
+// shapes (function with domain and range [0,1])
+shapes = {};
+shapes.sine = function(input)
+{
+	return Math.sin( Math.PI*input );
+}
+
+shapes.square = function(input)
+{
+	if( input < 0.5 )
+		return 0;
+	else
+		return 1;
+}
+
+// doc
+doc = [];
+tool = "sine";
+
+$(document).ready(function() {
+	$.each(shapes, function(shape){
+		var id = "shape-"+shape
+		var markup = "<canvas id='"+id+"' />";
+		$("#shapes").append(markup);
+		$("#"+id).addClass("shape");
+		$("#"+id).on("click", function(){
+			tool=shape;
+			$(".shape").removeClass("selected");
+			$("#"+id).addClass("selected");
+		});
+
+		var canvas = $("#"+id)[0];
+		canvas.width = 100;
+		canvas.height = 100;
+		var ctx = canvas.getContext("2d");
+		ctx.fillStyle = "rgb(64,64,64)";
+		ctx.fillRect (0, 0, 100, 100);
+		ctx.strokeStyle = "rgb(200,200,255)";
+
+		ctx.beginPath();
+		var res = 100;
+		ctx.moveTo(2,-2+100-100*shapes[shape](0)*0.96);
+		for( var x=1; x<res+1; x++ )
+		{
+			ctx.lineTo(2+x*(100/res)*0.96,-2+100-100*shapes[shape](x/res)*0.96);
+		}
+		ctx.stroke();
+	});
+	$("#shape-sine").addClass("selected");
+
+	editor.onclick = function(e){onClick(e);};
+	draw();
+	updateOutput();
+});
+
+function updateOutput()
+{
+	var output = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+	output += "<EnvelopeSelectionContent doc_version=\"0\">\n"
+	output += "  <Points>\n"
+	var w = 32768/16;
+	for( var x=0; x<32768; x+=256 )
+	{
+		var i = Math.floor(x/w);
+		var y;
+		if(doc[i])
+			y = doc[i].scale * shapes[doc[i].shape]((x%w)/w);
+		else
+			y = 0;
+		output += "    <Point>"+x+","+y+"</Point>\n";
+	}
+	// TODO: Last point in a nicer way.
+	var y;
+	if(doc[15])
+		y = doc[15].scale * shapes[doc[15].shape](1);
+	else
+		y = 0;
+	output += "    <Point>"+32767+","+y+"</Point>\n";
+	output += "  </Points>\n"
+	output += "  <RangeLength>32768</RangeLength>\n"
+	output += "</EnvelopeSelectionContent>"
+
+	$("#output")[0].value = output;
+}
+
+function draw()
+{
+	var editor = $("#editor")[0];
+	editor.width = 800;
+	editor.height = 100;
+	var ctx = editor.getContext("2d");
+	ctx.fillStyle = "rgb(64,64,64)";
+	ctx.strokeStyle = "rgb(96,96,96)";
+	ctx.fillRect (0, 0, 800, 100);
+	for( var x=1; x<16; x++ )
+	{
+		ctx.beginPath();
+		ctx.moveTo(x*800/16,0);
+		ctx.lineTo(x*800/16,100);
+		ctx.stroke();
+	}
+
+	ctx.strokeStyle = "rgb(200,200,255)";
+	for( var x=0; x<16; x++ )
+	{
+		if( !doc[x] ) continue;
+		var shape = doc[x].shape;
+		ctx.beginPath();
+		var res = 20;
+		ctx.moveTo(1+x*800/16,-1+100-100*shapes[shape](0)*0.98);
+		for( var i=1; i<res+1; i++ )
+		{
+			var h = -1+100-100*shapes[shape](i/res)*doc[x].scale*0.98;
+			ctx.lineTo(x*800/16+1+i*(800/16/res)*0.98,h);
+		}
+		ctx.stroke();
+	}
+}
+
+function onClick(inEvent)
+{
+	var x = Math.floor(inEvent.offsetX/(800/16));
+	var y = 100-inEvent.offsetY;
+	doc[x] = { scale: y/100, shape:tool };
+	draw();
+	updateOutput();
+}
+
+
+</script>
+</head>
+<body>
+<h1>Renoise Automation</h1>
+Massive 'performer' style...
+<div id="shapes"></div>
+<div>
+  Click to add some data:
+  <canvas id="editor"></canvas>
+</div>
+<div>
+  Then Copy/Paste what's below for glory:
+  <textarea id="output"></textarea>
+</div>
+</body>
+</html>
