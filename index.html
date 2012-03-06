@@ -84,7 +84,7 @@ $(document).ready(function() {
 	$("#output-multiplier").on("change", updateOutput);
 	$("#editor").on("mousedown", function(e){onMouseDown(e);});
 	$("#editor").on("mousemove", function(e){onMouseMove(e);});
-	$("#editor").on("mouseup", function(e){onMouseUp(e);});
+	$("body").on("mouseup", function(e){onMouseUp(e);});
 	draw();
 	updateOutput();
 });
