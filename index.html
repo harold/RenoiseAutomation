@@ -12,17 +12,40 @@ shapes.sine = function(input)
 	return Math.sin( Math.PI*input );
 }
 
+shapes.square25 = function(input)
+{
+	return input < 0.25 ? 0 : 1;
+}
+
 shapes.square = function(input)
 {
-	if( input < 0.5 )
-		return 0;
-	else
-		return 1;
+	return input < 0.50 ? 0 : 1;
+}
+
+shapes.square75 = function(input)
+{
+	return input < 0.75 ? 0 : 1;
+}
+
+shapes.ramp = function(input)
+{
+	return input;
+}
+
+shapes.tri = function(input)
+{
+	return input > 0.5 ? 2*(1-input) : 2*input;
+}
+
+shapes.noise = function(input)
+{
+	return Math.random();
 }
 
 // doc
 doc = [];
 tool = "sine";
+mouseDown = false;
 
 $(document).ready(function() {
 	$.each(shapes, function(shape){
@@ -36,26 +59,32 @@ $(document).ready(function() {
 			$("#"+id).addClass("selected");
 		});
 
+		var shapeSize = 50;
 		var canvas = $("#"+id)[0];
-		canvas.width = 100;
-		canvas.height = 100;
+		canvas.width = shapeSize;
+		canvas.height = shapeSize;
 		var ctx = canvas.getContext("2d");
 		ctx.fillStyle = "rgb(64,64,64)";
-		ctx.fillRect (0, 0, 100, 100);
+		ctx.fillRect (0, 0, shapeSize, shapeSize);
 		ctx.strokeStyle = "rgb(200,200,255)";
 
 		ctx.beginPath();
-		var res = 100;
-		ctx.moveTo(2,-2+100-100*shapes[shape](0)*0.96);
-		for( var x=1; x<res+1; x++ )
+		var res = shapeSize;
+		ctx.moveTo(1,-1+shapeSize-shapeSize*shapes[shape](0)*0.96);
+		for( var i=1; i<res+1; i++ )
 		{
-			ctx.lineTo(2+x*(100/res)*0.96,-2+100-100*shapes[shape](x/res)*0.96);
+			var x = 1+i*(shapeSize/res)*0.96;
+			var y = -1+shapeSize-shapeSize*shapes[shape](i/res)*0.96;
+			ctx.lineTo(x,y);
 		}
 		ctx.stroke();
 	});
 	$("#shape-sine").addClass("selected");
 
-	editor.onclick = function(e){onClick(e);};
+	$("#output-multiplier").on("change", updateOutput);
+	$("#editor").on("mousedown", function(e){onMouseDown(e);});
+	$("#editor").on("mousemove", function(e){onMouseMove(e);});
+	$("#editor").on("mouseup", function(e){onMouseUp(e);});
 	draw();
 	updateOutput();
 });
@@ -66,7 +95,8 @@ function updateOutput()
 	output += "<EnvelopeSelectionContent doc_version=\"0\">\n"
 	output += "  <Points>\n"
 	var w = 32768/16;
-	for( var x=0; x<32768; x+=256 )
+	var mult = $("#output-multiplier")[0].value*1;
+	for( var x=0; x<32768; x+=256/mult )
 	{
 		var i = Math.floor(x/w);
 		var y;
@@ -74,7 +104,7 @@ function updateOutput()
 			y = doc[i].scale * shapes[doc[i].shape]((x%w)/w);
 		else
 			y = 0;
-		output += "    <Point>"+x+","+y+"</Point>\n";
+		output += "    <Point>"+x+","+y.toFixed(2)+"</Point>\n";
 	}
 	// TODO: Last point in a nicer way.
 	var y;
@@ -82,7 +112,7 @@ function updateOutput()
 		y = doc[15].scale * shapes[doc[15].shape](1);
 	else
 		y = 0;
-	output += "    <Point>"+32767+","+y+"</Point>\n";
+	output += "    <Point>"+32767+","+y.toFixed(2)+"</Point>\n";
 	output += "  </Points>\n"
 	output += "  <RangeLength>32768</RangeLength>\n"
 	output += "</EnvelopeSelectionContent>"
@@ -114,7 +144,7 @@ function draw()
 		var shape = doc[x].shape;
 		ctx.beginPath();
 		var res = 20;
-		ctx.moveTo(1+x*800/16,-1+100-100*shapes[shape](0)*0.98);
+		ctx.moveTo(1+x*800/16,-1+100-100*shapes[shape](0)*doc[x].scale*0.98);
 		for( var i=1; i<res+1; i++ )
 		{
 			var h = -1+100-100*shapes[shape](i/res)*doc[x].scale*0.98;
@@ -124,25 +154,46 @@ function draw()
 	}
 }
 
-function onClick(inEvent)
+function onMouseDown()
 {
-	var x = Math.floor(inEvent.offsetX/(800/16));
-	var y = 100-inEvent.offsetY;
-	doc[x] = { scale: y/100, shape:tool };
-	draw();
-	updateOutput();
+	mouseDown = true;
 }
 
+function onMouseMove( inEvent )
+{
+	if(mouseDown)
+	{
+		var x = Math.floor(inEvent.offsetX/(800/16));
+		var y = 100-inEvent.offsetY;
+		doc[x] = { scale: y/100, shape:tool };
+		draw();
+		updateOutput();
+	}
+}
+
+function onMouseUp()
+{
+	mouseDown = false;
+}
 
 </script>
 </head>
-<body>
+<body class="unselectable">
 <h1>Renoise Automation</h1>
 Massive 'performer' style...
 <div id="shapes"></div>
 <div>
-  <p>Click to add some data:</p>
-  <canvas id="editor"></canvas>
+	<p>Click to add some data:</p>
+	<canvas id="editor"></canvas>
+	<p>
+	Output resolution multiplier: 
+	<select id="output-multiplier">
+		<option value="1">1x</option>
+		<option value="2">2x</option>
+		<option value="4">4x</option>
+		<option value="8">8x</option>
+	</select>
+	</p>
 </div>
 <div>
   <p>Then Copy/Paste what's below for glory:</p>
