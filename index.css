@@ -10,5 +10,6 @@ h1, h2, p {margin:0;padding:0;}
 p {margin-top:0.5em;}
 canvas {margin-top:2px;margin-right:2px;}
 textarea {width:800px; height:400px; font-size:8pt; background:#333; color:#fff;}
+fieldset {width:800px; margin-bottom:2ex;}
 .shape {border:solid 1px rgba(0,0,0,0);}
 .selected {border:solid 1px yellow;}

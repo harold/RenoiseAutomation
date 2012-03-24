@@ -6,6 +6,7 @@
 <script>
 
 // shapes (function with domain and range [0,1])
+var shapeSize = 50;
 shapes = {};
 shapes.sine = function(input)
 {
@@ -27,9 +28,19 @@ shapes.square75 = function(input)
 	return input < 0.75 ? 0 : 1;
 }
 
+shapes.sqrt = function(input)
+{
+	return Math.sqrt(input);
+}
+
 shapes.ramp = function(input)
 {
 	return input;
+}
+
+shapes.pow = function(input)
+{
+	return Math.pow(input,2);
 }
 
 shapes.tri = function(input)
@@ -59,28 +70,15 @@ $(document).ready(function() {
 			$("#"+id).addClass("selected");
 		});
 
-		var shapeSize = 50;
 		var canvas = $("#"+id)[0];
 		canvas.width = shapeSize;
 		canvas.height = shapeSize;
-		var ctx = canvas.getContext("2d");
-		ctx.fillStyle = "rgb(64,64,64)";
-		ctx.fillRect (0, 0, shapeSize, shapeSize);
-		ctx.strokeStyle = "rgb(200,200,255)";
-
-		ctx.beginPath();
-		var res = shapeSize;
-		ctx.moveTo(1,-1+shapeSize-shapeSize*shapes[shape](0)*0.96);
-		for( var i=1; i<res+1; i++ )
-		{
-			var x = 1+i*(shapeSize/res)*0.96;
-			var y = -1+shapeSize-shapeSize*shapes[shape](i/res)*0.96;
-			ctx.lineTo(x,y);
-		}
-		ctx.stroke();
 	});
+	updateShapes();
 	$("#shape-sine").addClass("selected");
 
+	$("#flip").on("change", updateShapes);
+	$("#reverse").on("change", updateShapes);
 	$("#output-multiplier").on("change", updateOutput);
 	$("#editor").on("mousedown", function(e){onMouseDown(e);});
 	$("#editor").on("mousemove", function(e){onMouseMove(e);});
@@ -88,6 +86,41 @@ $(document).ready(function() {
 	draw();
 	updateOutput();
 });
+
+function getShapeValueAt( shape, input, flip, reverse )
+{
+	var output = shapes[shape]( reverse ? 1-input : input );
+	return flip ? 1-output : output
+}
+
+function updateShapes()
+{
+	var flip = $("#flip")[0].checked;
+	var reverse = $("#reverse")[0].checked;
+	console.log([flip,reverse])
+	var canvases = $(".shape");
+	canvases.each(function(index){
+		var shape = canvases[index];
+		var shapeName = shape.id.match("[^-]+$")[0];
+		var ctx = shape.getContext("2d");
+		ctx.fillStyle = "rgb(64,64,64)";
+		ctx.fillRect (0, 0, shapeSize, shapeSize);
+		ctx.strokeStyle = "rgb(200,200,255)";
+
+		ctx.beginPath();
+		var res = shapeSize;
+		var val = getShapeValueAt( shapeName, 0, flip, reverse );
+		ctx.moveTo(1,-1+shapeSize-shapeSize*val*0.96);
+		for( var i=1; i<res+1; i++ )
+		{
+			val = getShapeValueAt( shapeName, i/res, flip, reverse );
+			var x = 1+i*(shapeSize/res)*0.96;
+			var y = -1+shapeSize-shapeSize*val*0.96;
+			ctx.lineTo(x,y);
+		}
+		ctx.stroke();
+	});
+}
 
 function updateOutput()
 {
@@ -101,7 +134,7 @@ function updateOutput()
 		var i = Math.floor(x/w);
 		var y;
 		if(doc[i])
-			y = doc[i].scale * shapes[doc[i].shape]((x%w)/w);
+			y = doc[i].scale * getShapeValueAt(doc[i].shape,((x%w)/w),doc[i].flip,doc[i].reverse);
 		else
 			y = 0;
 		output += "    <Point>"+x+","+y.toFixed(2)+"</Point>\n";
@@ -109,7 +142,7 @@ function updateOutput()
 	// TODO: Last point in a nicer way.
 	var y;
 	if(doc[15])
-		y = doc[15].scale * shapes[doc[15].shape](1);
+		y = doc[15].scale * getShapeValueAt(doc[15].shape,1,doc[15].flip,doc[15].reverse);
 	else
 		y = 0;
 	output += "    <Point>"+32767+","+y.toFixed(2)+"</Point>\n";
@@ -142,12 +175,16 @@ function draw()
 	{
 		if( !doc[x] ) continue;
 		var shape = doc[x].shape;
+		var flip = doc[x].flip;
+		var reverse = doc[x].reverse;
 		ctx.beginPath();
 		var res = 20;
-		ctx.moveTo(1+x*800/16,-1+100-100*shapes[shape](0)*doc[x].scale*0.98);
+		var val = getShapeValueAt(shape,0,flip,reverse);
+		ctx.moveTo(1+x*800/16,-1+100-100*val*doc[x].scale*0.98);
 		for( var i=1; i<res+1; i++ )
 		{
-			var h = -1+100-100*shapes[shape](i/res)*doc[x].scale*0.98;
+			val = getShapeValueAt(shape,i/res,flip,reverse);
+			var h = -1+100-100*val*doc[x].scale*0.98;
 			ctx.lineTo(x*800/16+1+i*(800/16/res)*0.98,h);
 		}
 		ctx.stroke();
@@ -165,7 +202,9 @@ function onMouseMove( inEvent )
 	{
 		var x = Math.floor(inEvent.offsetX/(800/16));
 		var y = 100-inEvent.offsetY;
-		doc[x] = { scale: y/100, shape:tool };
+		var flip = $("#flip")[0].checked;
+		var reverse = $("#reverse")[0].checked;
+		doc[x] = { scale: y/100, shape:tool, flip:flip, reverse:reverse };
 		draw();
 		updateOutput();
 	}
@@ -180,11 +219,22 @@ function onMouseUp()
 </head>
 <body class="unselectable">
 <h1>Renoise Automation</h1>
-Massive 'performer' style...
-<div id="shapes"></div>
+<fieldset>
+	<legend>Choose shapes</legend>
+	<div id="shapes"></div>
+</fieldset>
 <div>
-	<p>Click to add some data:</p>
+	<fieldset>
+		<legend>Add modifiers</legend>
+		<p><label> <input type=checkbox id="flip"> Flip </label></p>
+		<p><label> <input type=checkbox id="reverse"> Reverse </label></p>
+	</fieldset>
+</div>
+<fieldset>
+	<legend>Click to add some data:</legend>
 	<canvas id="editor"></canvas>
+</fieldset>
+<fieldset>
 	<p>
 	Output resolution multiplier: 
 	<select id="output-multiplier">
@@ -194,10 +244,8 @@ Massive 'performer' style...
 		<option value="8">8x</option>
 	</select>
 	</p>
-</div>
-<div>
-  <p>Then Copy/Paste what's below for glory:</p>
-  <textarea id="output"></textarea>
-</div>
+	<legend>Then Copy/Paste what's below for glory:</legend>
+	<textarea id="output"></textarea>
+</fieldset>
 </body>
 </html>
