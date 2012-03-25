@@ -97,7 +97,6 @@ function updateShapes()
 {
 	var flip = $("#flip")[0].checked;
 	var reverse = $("#reverse")[0].checked;
-	console.log([flip,reverse])
 	var canvases = $(".shape");
 	canvases.each(function(index){
 		var shape = canvases[index];
@@ -124,6 +123,7 @@ function updateShapes()
 
 function updateOutput()
 {
+	// TODO: Use actual XML instead of strings here
 	var output = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 	output += "<EnvelopeSelectionContent doc_version=\"0\">\n"
 	output += "  <Points>\n"
@@ -137,6 +137,15 @@ function updateOutput()
 			y = doc[i].scale * getShapeValueAt(doc[i].shape,((x%w)/w),doc[i].flip,doc[i].reverse);
 		else
 			y = 0;
+
+		var previousI = Math.floor((x-1)/w)
+		if( i != previousI && x > 0 )
+		{
+			var lastValue = doc[previousI] ? doc[previousI].scale * getShapeValueAt(doc[previousI].shape,1,doc[previousI].flip,doc[previousI].reverse) : 0;
+
+			output += "    <Point>"+(x-1)+","+lastValue.toFixed(2)+"</Point>\n";
+		}
+
 		output += "    <Point>"+x+","+y.toFixed(2)+"</Point>\n";
 	}
 	// TODO: Last point in a nicer way.
