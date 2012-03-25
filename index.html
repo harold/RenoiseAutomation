@@ -79,6 +79,7 @@ $(document).ready(function() {
 
 	$("#flip").on("change", updateShapes);
 	$("#reverse").on("change", updateShapes);
+	$("#input-multiplier").on("change", updateShapes);
 	$("#output-multiplier").on("change", updateOutput);
 	$("#editor").on("mousedown", function(e){onMouseDown(e);});
 	$("#editor").on("mousemove", function(e){onMouseMove(e);});
@@ -87,8 +88,10 @@ $(document).ready(function() {
 	updateOutput();
 });
 
-function getShapeValueAt( shape, input, flip, reverse )
+function getShapeValueAt( shape, input, flip, reverse, mult )
 {
+	input = input * mult;
+	while( input > 1 ) input = input - 1;
 	var output = shapes[shape]( reverse ? 1-input : input );
 	return flip ? 1-output : output
 }
@@ -97,6 +100,7 @@ function updateShapes()
 {
 	var flip = $("#flip")[0].checked;
 	var reverse = $("#reverse")[0].checked;
+	var mult = $("#input-multiplier")[0].value * 1;
 	var canvases = $(".shape");
 	canvases.each(function(index){
 		var shape = canvases[index];
@@ -108,11 +112,11 @@ function updateShapes()
 
 		ctx.beginPath();
 		var res = shapeSize;
-		var val = getShapeValueAt( shapeName, 0, flip, reverse );
+		var val = getShapeValueAt( shapeName, 0, flip, reverse, mult );
 		ctx.moveTo(1,-1+shapeSize-shapeSize*val*0.96);
 		for( var i=1; i<res+1; i++ )
 		{
-			val = getShapeValueAt( shapeName, i/res, flip, reverse );
+			val = getShapeValueAt( shapeName, i/res, flip, reverse, mult );
 			var x = 1+i*(shapeSize/res)*0.96;
 			var y = -1+shapeSize-shapeSize*val*0.96;
 			ctx.lineTo(x,y);
@@ -134,14 +138,14 @@ function updateOutput()
 		var i = Math.floor(x/w);
 		var y;
 		if(doc[i])
-			y = doc[i].scale * getShapeValueAt(doc[i].shape,((x%w)/w),doc[i].flip,doc[i].reverse);
+			y = doc[i].scale * getShapeValueAt(doc[i].shape,((x%w)/w),doc[i].flip,doc[i].reverse,doc[i].mult);
 		else
 			y = 0;
 
 		var previousI = Math.floor((x-1)/w)
 		if( i != previousI && x > 0 )
 		{
-			var lastValue = doc[previousI] ? doc[previousI].scale * getShapeValueAt(doc[previousI].shape,1,doc[previousI].flip,doc[previousI].reverse) : 0;
+			var lastValue = doc[previousI] ? doc[previousI].scale * getShapeValueAt(doc[previousI].shape,1,doc[previousI].flip,doc[previousI].reverse,doc[previousI].mult) : 0;
 
 			output += "    <Point>"+(x-1)+","+lastValue.toFixed(2)+"</Point>\n";
 		}
@@ -151,7 +155,7 @@ function updateOutput()
 	// TODO: Last point in a nicer way.
 	var y;
 	if(doc[15])
-		y = doc[15].scale * getShapeValueAt(doc[15].shape,1,doc[15].flip,doc[15].reverse);
+		y = doc[15].scale * getShapeValueAt(doc[15].shape,1,doc[15].flip,doc[15].reverse,doc[15].mult);
 	else
 		y = 0;
 	output += "    <Point>"+32767+","+y.toFixed(2)+"</Point>\n";
@@ -186,13 +190,14 @@ function draw()
 		var shape = doc[x].shape;
 		var flip = doc[x].flip;
 		var reverse = doc[x].reverse;
+		var mult = doc[x].mult;
 		ctx.beginPath();
 		var res = 20;
-		var val = getShapeValueAt(shape,0,flip,reverse);
+		var val = getShapeValueAt(shape,0,flip,reverse,mult);
 		ctx.moveTo(1+x*800/16,-1+100-100*val*doc[x].scale*0.98);
 		for( var i=1; i<res+1; i++ )
 		{
-			val = getShapeValueAt(shape,i/res,flip,reverse);
+			val = getShapeValueAt(shape,i/res,flip,reverse,mult);
 			var h = -1+100-100*val*doc[x].scale*0.98;
 			ctx.lineTo(x*800/16+1+i*(800/16/res)*0.98,h);
 		}
@@ -213,7 +218,8 @@ function onMouseMove( inEvent )
 		var y = 100-inEvent.offsetY;
 		var flip = $("#flip")[0].checked;
 		var reverse = $("#reverse")[0].checked;
-		doc[x] = { scale: y/100, shape:tool, flip:flip, reverse:reverse };
+		var mult = $("#input-multiplier")[0].value * 1;
+		doc[x] = { scale: y/100, shape:tool, flip:flip, reverse:reverse, mult:mult };
 		draw();
 		updateOutput();
 	}
@@ -237,6 +243,16 @@ function onMouseUp()
 		<legend>Add modifiers</legend>
 		<p><label> <input type=checkbox id="flip"> Flip </label></p>
 		<p><label> <input type=checkbox id="reverse"> Reverse </label></p>
+		<p>
+			Input multiplier: 
+			<select id="input-multiplier">
+				<option value="1">1x</option>
+				<option value="2">2x</option>
+				<option value="3">3x</option>
+				<option value="4">4x</option>
+				<option value="5">5x</option>
+			</select>
+		</p>
 	</fieldset>
 </div>
 <fieldset>
